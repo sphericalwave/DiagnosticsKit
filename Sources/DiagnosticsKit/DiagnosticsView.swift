@@ -164,3 +164,11 @@ public struct DiagnosticsView: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("DiagnosticsView") {
+    NavigationStack {
+        DiagnosticsView(log: DiagnosticsKitSamples.sampleLog())
+    }
+}
+#endif
