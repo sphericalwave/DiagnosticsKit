@@ -3,6 +3,14 @@
 In-app diagnostics: audio session state monitoring and an on-device error log with a
 shareable viewer.
 
+## Components
+
+<!-- SCREENSHOTS:START -->
+| Component | Preview |
+| --- | --- |
+| `DiagnosticsView` | ![DiagnosticsView](Docs/img/diagnostics-view.png) |
+<!-- SCREENSHOTS:END -->
+
 ## Requirements
 
 - iOS 17+ / macOS 14+
