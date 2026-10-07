@@ -209,6 +209,45 @@ final class DiagnosticsKitTests: XCTestCase {
                        "an empty source must not render a dangling label")
     }
 
+    // MARK: - Copy Log
+
+    private func entry(_ message: String, level: DiagnosticEntry.Level = .info,
+                       source: String = "", detail: String? = nil,
+                       at seconds: TimeInterval) -> DiagnosticEntry {
+        DiagnosticEntry(date: Date(timeIntervalSince1970: seconds), app: "TestApp",
+                        level: level, source: source, message: message, detail: detail,
+                        file: "Mod/File.swift", line: 12, function: "f()")
+    }
+
+    func testCopyTextIsNewestFirstWithFullDetail() {
+        let old = entry("older", at: 1_000)
+        let new = entry("newer", level: .error, source: "CoreData",
+                        detail: "Domain: X  Code: 1", at: 2_000)
+
+        let text = ErrorLog.copyText(for: [old, new])
+        XCTAssertEqual(text, new.fullText + "\n\n---\n\n" + old.fullText,
+                       "newest first, each in fullText form")
+        XCTAssertTrue(text.contains("ERROR"))
+        XCTAssertTrue(text.contains("Source: CoreData"))
+        XCTAssertTrue(text.contains("Domain: X  Code: 1"))
+        XCTAssertTrue(text.contains("Mod/File.swift:12"))
+        XCTAssertFalse(text.contains("Showing newest"), "no cap note under the limit")
+    }
+
+    func testCopyTextCapsAndNotesTheCap() {
+        let entries = (0..<10).map { entry("entry \($0)", at: TimeInterval($0)) }
+
+        let text = ErrorLog.copyText(for: entries, limit: 3)
+        XCTAssertTrue(text.contains("entry 9"))
+        XCTAssertTrue(text.contains("entry 7"))
+        XCTAssertFalse(text.contains("entry 6"), "older entries beyond the cap are dropped")
+        XCTAssertTrue(text.hasSuffix("[Showing newest 3 of 10 entries]"))
+    }
+
+    func testCopyTextOfNothingIsEmpty() {
+        XCTAssertEqual(ErrorLog.copyText(for: []), "")
+    }
+
     // MARK: - Snapshot
 
     func testSnapshotSummaryMentionsCategoryAndOptions() {

@@ -17,6 +17,8 @@ public struct DiagnosticsView: View {
     @State private var levelFilter: DiagnosticEntry.Level?
     /// Entry showing its "copied" confirmation, if any.
     @State private var copiedID: UUID?
+    /// "Copied N entries" toast after Copy Log; `nil` when hidden.
+    @State private var logCopiedToast: Toast?
     private let onSnapshot: (() -> Void)?
 
     /// - Parameter onSnapshot: replaces what the Snapshot button records. Hosts
@@ -59,7 +61,39 @@ public struct DiagnosticsView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .toolbar { toolbarContent }
+        .overlay(alignment: .bottom) {
+            if let logCopiedToast {
+                Label(logCopiedToast.text, systemImage: "checkmark.circle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.regularMaterial, in: Capsule())
+                    .padding(.bottom, 24)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.snappy, value: logCopiedToast)
+        .sensoryFeedback(.success, trigger: logCopiedToast) { _, new in new != nil }
         .onAppear { log.markRead() }
+    }
+
+    private func copyLog() {
+        let entries = visible
+        Pasteboard.copy(ErrorLog.copyText(for: entries))
+        let count = min(entries.count, ErrorLog.copyLimit)
+        // A fresh id per copy, so a repeat copy re-fires the haptic and
+        // isn't hidden early by the previous copy's timer.
+        let toast = Toast(text: "Copied \(count) \(count == 1 ? "entry" : "entries")")
+        logCopiedToast = toast
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            if logCopiedToast == toast { logCopiedToast = nil }
+        }
+    }
+
+    private struct Toast: Equatable {
+        let id = UUID()
+        let text: String
     }
 
     @ViewBuilder
@@ -153,6 +187,10 @@ public struct DiagnosticsView: View {
                 ShareLink(item: log.exportText()) {
                     Label("Export Timeline", systemImage: "square.and.arrow.up")
                 }
+                Button(action: copyLog) {
+                    Label("Copy Log", systemImage: "doc.on.doc")
+                }
+                .disabled(visible.isEmpty)
                 Divider()
                 Button("Clear This App's Log", role: .destructive) {
                     log.clear()

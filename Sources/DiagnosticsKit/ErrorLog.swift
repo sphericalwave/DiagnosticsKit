@@ -153,6 +153,25 @@ public final class ErrorLog: ObservableObject, @unchecked Sendable {
         entries.reversed().map(\.timelineLine).joined(separator: "\n")
     }
 
+    /// Default cap for `copyText` — enough to cover a full default-sized log
+    /// without handing the pasteboard an unbounded string.
+    public static let copyLimit = 500
+
+    /// Full-detail dump of `entries` for the clipboard: newest first, each in
+    /// `DiagnosticEntry.fullText` form. Beyond `limit`, only the newest are
+    /// kept and the text says so, so a truncated paste isn't mistaken for the
+    /// whole log.
+    public static func copyText(for entries: [DiagnosticEntry],
+                                limit: Int = copyLimit) -> String {
+        let sorted = entries.sorted { $0.date > $1.date }
+        let kept = sorted.prefix(limit)
+        var blocks = kept.map(\.fullText)
+        if sorted.count > kept.count {
+            blocks.append("[Showing newest \(kept.count) of \(sorted.count) entries]")
+        }
+        return blocks.joined(separator: "\n\n---\n\n")
+    }
+
     // MARK: - Persistence
 
     private func persist() {
